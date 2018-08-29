@@ -1,4 +1,4 @@
-package com.example.arjun_mu.firebasemine;
+package com.example.arjun_mu.firebaseminee;
 
 import android.content.Context;
 import android.support.test.InstrumentationRegistry;
