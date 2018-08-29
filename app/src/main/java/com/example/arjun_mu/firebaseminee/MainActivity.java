@@ -12,10 +12,14 @@ import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.FirebaseFirestoreException;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import javax.annotation.Nullable;
 
 public class MainActivity extends AppCompatActivity {
     public static final String QUOTE = "quote";
@@ -25,7 +29,7 @@ public class MainActivity extends AppCompatActivity {
     DocumentReference mdocref = FirebaseFirestore.getInstance().document("sampledata/inspiration");
     private static final String TAG = "MainActivity";
     TextView tvfetch;
-
+    
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -34,6 +38,24 @@ public class MainActivity extends AppCompatActivity {
         etquote = findViewById(R.id.editTextquote);
         tvfetch=findViewById(R.id.fetch);
 
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        mdocref.addSnapshotListener(this,new EventListener<DocumentSnapshot>() {
+            @Override
+            public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
+                if(documentSnapshot.exists()){
+                    String quote=documentSnapshot.getString(QUOTE);
+                    String author=documentSnapshot.getString(AUTHOR);
+                    tvfetch.setText(quote+"---"+author);
+                }
+                else if(e!=null){
+                    Log.w(TAG,"got an exception");
+                }
+            }
+        });
     }
 
     public void savequote(View view) {
