@@ -1,20 +1,30 @@
 package com.example.arjun_mu.firebaseminee;
 
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.os.Build;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.android.gms.tasks.Task;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreException;
+import com.google.firebase.iid.FirebaseInstanceId;
+import com.google.firebase.iid.InstanceIdResult;
+import com.google.firebase.messaging.FirebaseMessaging;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -22,80 +32,89 @@ import java.util.Map;
 import javax.annotation.Nullable;
 
 public class MainActivity extends AppCompatActivity {
-    public static final String QUOTE = "quote";
-    public static final String AUTHOR = "author";
-    EditText etauthor;
-    EditText etquote;
-    DocumentReference mdocref = FirebaseFirestore.getInstance().document("sampledata/inspiration");
+
     private static final String TAG = "MainActivity";
-    TextView tvfetch;
-    
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        etauthor = findViewById(R.id.editTextauthor);
-        etquote = findViewById(R.id.editTextquote);
-        tvfetch=findViewById(R.id.fetch);
-
-    }
-
-    @Override
-    protected void onStart() {
-        super.onStart();
-        mdocref.addSnapshotListener(this,new EventListener<DocumentSnapshot>() {
-            @Override
-            public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
-                if(documentSnapshot.exists()){
-                    String quote=documentSnapshot.getString(QUOTE);
-                    String author=documentSnapshot.getString(AUTHOR);
-                    tvfetch.setText(quote+"---"+author);
-                }
-                else if(e!=null){
-                    Log.w(TAG,"got an exception");
-                }
-            }
-        });
-    }
-
-    public void savequote(View view) {
-        String authortext = etauthor.getText().toString();
-        String quotetext = etquote.getText().toString();
-
-        if (authortext.isEmpty() || quotetext.isEmpty()) {
-            return;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // Create channel to show notifications.
+            String channelId  = getString(R.string.default_notification_channel_id);
+            String channelName = getString(R.string.default_notification_channel_name);
+            NotificationManager notificationManager =
+                    getSystemService(NotificationManager.class);
+            notificationManager.createNotificationChannel(new NotificationChannel(channelId,
+                    channelName, NotificationManager.IMPORTANCE_LOW));
         }
 
-        Map<String, Object> datatosave = new HashMap<>();
-        datatosave.put(QUOTE, quotetext);
-        datatosave.put(AUTHOR, authortext);
-
-        mdocref.set(datatosave).addOnSuccessListener(new OnSuccessListener<Void>() {
-            @Override
-            public void onSuccess(Void aVoid) {
-                Log.d(TAG, "onSuccess: ");
-
+        // If a notification message is tapped, any data accompanying the notification
+        // message is available in the intent extras. In this sample the launcher
+        // intent is fired when the notification is tapped, so any accompanying data would
+        // be handled here. If you want a different intent fired, set the click_action
+        // field of the notification message to the desired intent. The launcher intent
+        // is used when no click_action is specified.
+        //
+        // Handle possible data accompanying notification message.
+        // [START handle_data_extras]
+        if (getIntent().getExtras() != null) {
+            for (String key : getIntent().getExtras().keySet()) {
+                Object value = getIntent().getExtras().get(key);
+                Log.d(TAG, "Key: " + key + " Value: " + value);
             }
-        }).addOnFailureListener(new OnFailureListener() {
+        }
+        // [END handle_data_extras]
+
+        Button subscribeButton = findViewById(R.id.subscribeButton);
+        subscribeButton.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onFailure(@NonNull Exception e) {
-                Log.d(TAG, "onFailure: ");
+            public void onClick(View v) {
+                Log.d(TAG, "Subscribing to news topic");
+                // [START subscribe_topics]
+                FirebaseMessaging.getInstance().subscribeToTopic("news")
+                        .addOnCompleteListener(new OnCompleteListener<Void>() {
+                            @Override
+                            public void onComplete(@NonNull Task<Void> task) {
+                                String msg = getString(R.string.msg_subscribed);
+                                if (!task.isSuccessful()) {
+                                    msg = getString(R.string.msg_subscribe_failed);
+                                }
+                                Log.d(TAG, msg);
+                                Toast.makeText(MainActivity.this, msg, Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                // [END subscribe_topics]
             }
         });
 
-    }
-
-    public void fetchquote(View view) {
-        mdocref.get().addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
+        Button logTokenButton = findViewById(R.id.logTokenButton);
+        logTokenButton.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onSuccess(DocumentSnapshot documentSnapshot) {
-                if(documentSnapshot.exists()){
-                    String quote=documentSnapshot.getString(QUOTE);
-                    String author=documentSnapshot.getString(AUTHOR);
-                    tvfetch.setText(quote+"---"+author);
-                }
+            public void onClick(View v) {
+                // Get token
+                FirebaseInstanceId.getInstance().getInstanceId()
+                        .addOnCompleteListener(new OnCompleteListener<InstanceIdResult>() {
+                            @Override
+                            public void onComplete(@NonNull Task<InstanceIdResult> task) {
+                                if (!task.isSuccessful()) {
+                                    Log.w(TAG, "getInstanceId failed", task.getException());
+                                    return;
+                                }
+
+                                // Get new Instance ID token
+                                String token = task.getResult().getToken();
+
+                                // Log and toast
+                                String msg = getString(R.string.msg_token_fmt, token);
+                                Log.d(TAG, msg);
+                                Toast.makeText(MainActivity.this, msg, Toast.LENGTH_SHORT).show();
+                            }
+                        });
+
 
             }
         });
     }
+
 }
