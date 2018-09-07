@@ -31,6 +31,8 @@ dependencies {
     implementation 'com.google.firebase:firebase-messaging:17.3.0' //notifications
     implementation 'com.google.firebase:firebase-iid:17.0.0'
     implementation 'com.firebase:firebase-jobdispatcher:0.8.5'
+    implementation 'com.google.firebase:firebase-database:16.0.1' //database
+
 
 
 }
